@@ -1,0 +1,19 @@
+{
+    "workbench.colorCustomizations": {
+        "[Themey Alt]": {
+            "dropdown.background": "#5c6381cc",
+            "input.background": "#5c6381cc",
+            "activityBar.background": "#515671ff",
+            "sideBar.background": "#454a61ff",
+            "sideBarSectionHeader.background": "#515671ff",
+            "editorGroupHeader.tabsBackground": "#454a61ff",
+            "tab.inactiveBackground": "#515671ff",
+            "editor.background": "#3a3e51cc",
+            "panel.background": "#454a61ff",
+            "statusBar.background": "#2e3140ff",
+            "statusBar.noFolderBackground": "#2e3140ff"
+        },
+        "minimap.background": "#00000000",
+        "scrollbar.shadow": "#00000000"
+    }
+}
