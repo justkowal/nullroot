@@ -10,7 +10,7 @@ stdenv.mkDerivation {
 
   buildPhase = ''
     # Build the initramfs directory tree
-    mkdir -p rootfs/{bin,dev,proc,sys,tmp,etc,usr/share/udhcpc,etc/ssl/certs,etc/nix,nix/store}
+    mkdir -p rootfs/{bin,dev,proc,sys,tmp,etc,usr/share/udhcpc,etc/udhcpc,etc/ssl/certs,etc/nix,nix/store}
 
     # Copy statically-linked toybox
     cp ${toybox}/bin/toybox rootfs/bin/toybox
@@ -86,6 +86,7 @@ case "$1" in
 esac
 DHCP_EOF
     chmod +x rootfs/usr/share/udhcpc/default.script
+    ln -sf /usr/share/udhcpc/default.script rootfs/etc/udhcpc/default.script
 
     # Write the nullroot-install script
     cat > rootfs/bin/nullroot-install <<'INSTALLER_EOF'
@@ -188,7 +189,7 @@ mkdir -p /tmp_btrfs
 echo ""
 echo "Configuring network (DHCP)..."
 /bin/ifconfig eth0 up 2>/dev/null || true
-/bin/udhcpc -i eth0 -n -q || echo "DHCP failed, continuing..."
+/bin/udhcpc -i eth0 -s /usr/share/udhcpc/default.script -n -q || echo "DHCP failed, continuing..."
 
 # 5. Nix Setup
 echo "Preparing Nix database..."
