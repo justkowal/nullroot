@@ -1,0 +1,155 @@
+#!/bin/nu
+# Nullroot OS A/B System Rebuild & Upgrade Utility
+
+def main [
+  --system (-s)  # Rebuild the system configuration and flash the inactive A/B slot
+] {
+  if not $system {
+    print "Usage: nullroot-rebuild --system"
+    exit 1
+  }
+
+  print "=========================================="
+  print "      Nullroot OS A/B System Rebuild      "
+  print "=========================================="
+  print ""
+
+  # 1. Detect active slot and device info
+  print "Detecting current active slot..."
+  let blkid_out = (blkid)
+  let efi_dev = (blkid | lines | filter { |l| $l | str contains "TYPE=\"vfat\"" } | split column ":" | get column0 | first)
+  if ($efi_dev | is-empty) {
+    print "Error: EFI System Partition not found!"
+    exit 1
+  }
+
+  # Mount ESP to read current configuration
+  mkdir /tmp/mnt_efi
+  mount -t vfat $efi_dev /tmp/mnt_efi
+  
+  mut active_slot = "A"
+  if ("/tmp/mnt_efi/nullroot.conf" | path exists) {
+    let conf = (open /tmp/mnt_efi/nullroot.conf | lines | first)
+    if ($conf | str contains "ACTIVE_SLOT=\"B\"") {
+      $active_slot = "B"
+    }
+  }
+
+  # Calculate target boot slot (the inactive one)
+  mut target_slot = "B"
+  if $active_slot == "B" {
+    $target_slot = "A"
+  }
+
+  print $"Current Booted Slot: ($active_slot)"
+  print $"Target Upgrade Slot: ($target_slot) (Inactive)"
+  print ""
+
+  # Identify disks
+  let disk = ($efi_dev | str replace -r 'p?[0-9]+$' '')
+  mut part_root_target = ""
+  if ($disk | str contains "nvme") or ($disk | str contains "loop") {
+    if $target_slot == "B" {
+      $part_root_target = $"($disk)p3"
+    } else {
+      $part_root_target = $"($disk)p2"
+    }
+  } else {
+    if $target_slot == "B" {
+      $part_root_target = $"($disk)3"
+    } else {
+      $part_root_target = $"($disk)2"
+    }
+  }
+
+  # Find the data partition (p4)
+  mut part_data = ""
+  if ($disk | str contains "nvme") or ($disk | str contains "loop") {
+    $part_data = $"($disk)p4"
+  } else {
+    $part_data = $"($disk)4"
+  }
+
+  print $"Flashing Root Partition: ($part_root_target)"
+  print $"Nix Store Data Partition: ($part_data)"
+  print ""
+
+  # 2. Pull latest config from GitHub
+  print "Syncing latest configuration from GitHub..."
+  cd /etc/nullroot
+  git fetch origin
+  git pull --rebase origin HEAD
+
+  # Build the system from updated /etc/nullroot system flake
+  print "Building new target configuration using Nix..."
+  let build_dir = "/etc/nullroot"
+  
+  print "Building target system kernel..."
+  nix build $"($build_dir)/system#kernel" --out-link /tmp/new-kernel --extra-experimental-features "nix-command flakes"
+  
+  print "Building target system rootfs..."
+  nix build $"($build_dir)/system#nullroot-system" --out-link /tmp/new-system --extra-experimental-features "nix-command flakes"
+
+  let system_path = (readlink -f /tmp/new-system)
+  let kernel_path = (readlink -f /tmp/new-kernel)
+
+  # 3. Create EROFS RootFS Image with user dotfiles overlaid
+  print "Staging rootfs with user configurations..."
+  rm -rf /tmp/new_rootfs
+  mkdir /tmp/new_rootfs
+  cp -a $"($system_path)/" /tmp/new_rootfs/
+
+  if ("/etc/nullroot/user" | path exists) {
+    print "Overlaying user dotfiles from GitHub config..."
+    mkdir -p /tmp/new_rootfs/etc/skel/.config
+    cp -a /etc/nullroot/user/ /tmp/new_rootfs/etc/skel/.config/
+  }
+
+  print "Generating read-only EROFS root filesystem image..."
+  rm -f /tmp/new_rootfs.img
+  mkfs.erofs -d /tmp/new_rootfs /tmp/new_rootfs.img
+
+  # 4. Flash EROFS image to inactive slot
+  print $"Flashing EROFS image to ($part_root_target)..."
+  dd if=/tmp/new_rootfs.img of=$part_root_target bs=4M status=progress
+
+  # 5. Copy built store paths to Nix store subvolume
+  print "Registering and copying Nix store closure..."
+  nix-store --dump-db > /tmp/new_db.dump
+
+  # Mount target Nix store subvolume
+  mkdir /tmp/mnt_nix
+  mount -o subvol=@nix $part_data /tmp/mnt_nix
+
+  # Copy all requisites
+  let reqs = (nix-store --query --requisites /tmp/new-system /tmp/new-kernel | lines)
+  for path in $reqs {
+    if ($path | path exists) {
+      cp -a $path /tmp/mnt_nix/store/
+    }
+  }
+
+  # Initialize and load registration database
+  NIX_STATE_DIR=/tmp/mnt_nix/var/nix nix-store --init
+  NIX_STATE_DIR=/tmp/mnt_nix/var/nix nix-store --load-db < /tmp/new_db.dump
+  umount /tmp/mnt_nix
+
+  # 6. Install target kernel on ESP
+  print "Installing target UEFI kernel image..."
+  if $target_slot == "B" {
+    cp $"($kernel_path)/bzImage" /tmp/mnt_efi/EFI/BOOT/bzImage_B.efi
+  } else {
+    cp $"($kernel_path)/bzImage" /tmp/mnt_efi/EFI/BOOT/bzImage_A.efi
+  }
+
+  # 7. Write new default configuration to ESP to trigger active swap
+  print $"Swapping active boot configuration to slot ($target_slot)..."
+  $"ACTIVE_SLOT=\"($target_slot)\"\n" | save -f /tmp/mnt_efi/nullroot.conf
+
+  umount /tmp/mnt_efi
+  print ""
+  print "=========================================="
+  print "    A/B Rebuild & Upgrade Successful!     "
+  print "=========================================="
+  print $"Please reboot to run the updated system from slot ($target_slot)."
+}

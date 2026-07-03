@@ -1,0 +1,34 @@
+# Nullroot OS: Tasks
+
+- `[x]` Milestone 1: Target-Optimized Musl/LLVM `stdenv` Overlay
+  - `[x]` Create stdenv overlays in Nix configurations
+  - `[x]` Configure compiler optimization flags (-march=native, -O3, -flto)
+  - `[x]` Validate Musl toolchain build correctness
+- `[x]` Milestone 2: Rust-Based Userspace Core (uutils & Nushell)
+  - `[x]` Add static uutils-coreutils multicall package derivation
+  - `[x]` Map userspace shell utilities symlinks to uutils binary
+  - `[x]` Build Nushell & Starship packages with Musl
+  - `[x]` Add declarative /etc/starship.toml compiler output
+- `[x]` Milestone 3: Hardware Profiling & minimized Kernel Compilation
+  - `[x]` Write nullroot-detect hardware probing utility script
+  - `[x]` Map hardware-probed IDs to kernel config flags in kernel.nix
+  - `[x]` Strip and build minimized target-optimized bzImage kernel
+- `[x]` Milestone 4: s6 Supervision Tree & Declarative System Services
+  - `[x]` Design declarative services Nix schema in system.nix
+  - `[x]` Create Nix compiler mapping settings to s6 service directories
+  - `[x]` Build target Stage 2 init executable executing s6-svscan
+- `[x]` Milestone 5: Partitioning, EROFS Roots & Writable overlays
+  - `[x]` Package erofs-utils formatted root partitions helper
+  - `[x]` Develop Stage 1 initramfs init mounting read-only active root
+  - `[x]` Configure overlayfs mounts for /var and /etc
+- `[x]` Milestone 6: Wayland Display & Audio Stack (Hyprland & PipeWire)
+  - `[x]` Package seatd, greetd, tuigreet, and PipeWire audio stack
+  - `[x]` Configure s6 supervision services for seatd & greetd
+  - `[x]` Add Hyprland Wayland configuration with auto-run daemons
+- `[x]` Milestone 7: Isolation Land (Flatpak Sandbox)
+  - `[x]` Compile static flatpak and bubblewrap tools for Musl
+  - `[x]` Set up Btrfs subvolumes overlays mapping for apps
+  - `[x]` Create user config package manager CLI nullroot-install-pkg
+- `[x]` Milestone 8: A/B Rebuilder & Dialog Installer
+  - `[x]` Implement TUI installer script nullroot-install using dialog
+  - `[x]` Write nullroot-rebuild script to dd flash EROFS and swap boot slots

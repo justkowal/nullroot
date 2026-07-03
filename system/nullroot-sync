@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+
+REPO_DIR="/etc/nullroot"
+
+if [ ! -d "$REPO_DIR/.git" ]; then
+  echo "Error: $REPO_DIR is not a git repository!"
+  echo "Please check out your repository to $REPO_DIR."
+  exit 1
+fi
+
+echo "Staging user configurations..."
+mkdir -p "$REPO_DIR/user"
+
+# Copy user config files to staging
+cp -r "$HOME/.config/nushell" "$REPO_DIR/user/" 2>/dev/null || true
+cp -r "$HOME/.config/hypr" "$REPO_DIR/user/" 2>/dev/null || true
+cp -r "$HOME/.config/nullroot" "$REPO_DIR/user/" 2>/dev/null || true
+if [ -f "$HOME/.config/starship.toml" ]; then
+  cp "$HOME/.config/starship.toml" "$REPO_DIR/user/"
+fi
+
+# Run git operations
+cd "$REPO_DIR"
+git add -A
+
+# Check if there are changes to commit
+if git diff-index --quiet HEAD --; then
+  echo "No changes detected. Configuration is already up to date with remote."
+else
+  echo "Committing configuration changes..."
+  git commit -m "Sync system & user configurations: $(date)"
+  echo "Pushing changes to GitHub..."
+  git push
+  echo "Configuration synchronized successfully!"
+fi

@@ -1,13 +1,11 @@
 #!/bin/sh
 
-export PATH=/bin
-
-echo "[nullroot-init] starting"
+echo ""
+echo "=== NULLROOT INIT ==="
 
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
-mount -t devtmpfs devtmpfs /dev
 
-echo "[nullroot-init] mounted pseudo-filesystems"
+echo "Mounted proc and sys"
 
-exec sh
+exec /bin/sh

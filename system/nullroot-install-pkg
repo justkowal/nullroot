@@ -1,0 +1,46 @@
+#!/bin/sh
+set -e
+
+CONFIG_DIR="$HOME/.config/nullroot/user"
+FLAKE_FILE="$CONFIG_DIR/flake.nix"
+
+if [ -z "$1" ]; then
+  echo "Usage: nullroot-install-pkg <package_name>"
+  exit 1
+fi
+
+PKG="$1"
+
+# Initialize user flake if it doesn't exist
+if [ ! -f "$FLAKE_FILE" ]; then
+  mkdir -p "$CONFIG_DIR"
+  cat > "$FLAKE_FILE" <<'EOF'
+{
+  description = "User declarative profile";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  outputs = { self, nixpkgs }: {
+    packages.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.buildEnv {
+      name = "user-profile";
+      paths = [
+        # DEFAULT_PACKAGES
+      ];
+    };
+  };
+}
+EOF
+fi
+
+# Check if package is already in the list
+if grep -q "$PKG" "$FLAKE_FILE"; then
+  echo "Package $PKG is already in your declarative profile."
+else
+  echo "Adding $PKG to your declarative configuration..."
+  # Insert the package name before the # DEFAULT_PACKAGES marker
+  sed -i "/# DEFAULT_PACKAGES/i \        nixpkgs.legacyPackages.x86_64-linux.$PKG" "$FLAKE_FILE"
+fi
+
+echo "Rebuilding and updating user profile..."
+nix profile install "$CONFIG_DIR" --extra-experimental-features "nix-command flakes" --impure || \
+nix profile upgrade 0 --extra-experimental-features "nix-command flakes" --impure
+
+echo "Package $PKG installed successfully!"
