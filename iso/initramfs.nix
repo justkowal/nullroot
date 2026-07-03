@@ -78,6 +78,10 @@ case "$1" in
     for i in $dns ; do
       echo "nameserver $i" >> /etc/resolv.conf
     done
+    # QEMU User-net DNS fallback and public DNS fallbacks
+    echo "nameserver 10.0.2.3" >> /etc/resolv.conf
+    echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+    echo "nameserver 1.1.1.1" >> /etc/resolv.conf
     ;;
 esac
 DHCP_EOF
