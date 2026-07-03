@@ -123,22 +123,22 @@ if mount -t erofs "$ROOT_DEV" /sysroot; then
   done
   
   if [ -b "$DATA_DEV" ]; then
-    echo "Mounting writable subvolumes..."
+    echo "Mounting writable subvolumes with ZSTD compression..."
     # Mount @nix subvolume to /sysroot/nix
     mkdir -p /sysroot/nix
-    mount -o subvol=@nix "$DATA_DEV" /sysroot/nix
+    mount -o subvol=@nix,compress=zstd "$DATA_DEV" /sysroot/nix
     
     # Mount @home subvolume to /sysroot/home
     mkdir -p /sysroot/home
-    mount -o subvol=@home "$DATA_DEV" /sysroot/home
+    mount -o subvol=@home,compress=zstd "$DATA_DEV" /sysroot/home
     
     # Mount @var subvolume to /sysroot/var
     mkdir -p /sysroot/var
-    mount -o subvol=@var "$DATA_DEV" /sysroot/var
+    mount -o subvol=@var,compress=zstd "$DATA_DEV" /sysroot/var
     
     # Mount @flatpak subvolume to /sysroot/var/lib/flatpak
     mkdir -p /sysroot/var/lib/flatpak
-    mount -o subvol=@flatpak "$DATA_DEV" /sysroot/var/lib/flatpak
+    mount -o subvol=@flatpak,compress=zstd "$DATA_DEV" /sysroot/var/lib/flatpak
     
     # Mount /sysroot/etc overlayfs using upper/work dirs inside /sysroot/var
     echo "Configuring overlayfs write path for /etc..."

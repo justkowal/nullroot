@@ -189,7 +189,7 @@ echo "Formatting Writable Data partition ($part_data) as Btrfs..."
 echo ""
 echo "Creating Btrfs subvolumes on Writable Data partition..."
 mkdir -p /tmp_btrfs
-/bin/mount -t btrfs "$part_data" /tmp_btrfs
+/bin/mount -t btrfs -o compress=zstd "$part_data" /tmp_btrfs
 /bin/btrfs subvolume create /tmp_btrfs/@nix
 /bin/btrfs subvolume create /tmp_btrfs/@home
 /bin/btrfs subvolume create /tmp_btrfs/@flatpak
@@ -205,9 +205,11 @@ echo "Configuring network (DHCP)..."
 # 5. Nix Setup
 echo "Mounting target Nix store subvolume..."
 mkdir -p /nix
-/bin/mount -t btrfs -o subvol=@nix "$part_data" /nix
+/bin/mount -t btrfs -o subvol=@nix,compress=zstd "$part_data" /nix
 mkdir -p /nix/var/nix /nix/store /nix/tmp
 export TMPDIR=/nix/tmp
+export HOME=/nix/tmp
+export XDG_CACHE_HOME=/nix/tmp/.cache
 
 echo "Preparing Nix database..."
 /bin/nix-store --init 2>/dev/null || true
