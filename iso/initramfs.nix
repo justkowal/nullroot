@@ -330,6 +330,9 @@ INSTALLER_EOF
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 mount -t devtmpfs devtmpfs /dev 2>/dev/null
+mkdir -p /dev/pts /dev/shm
+mount -t devpts devpts /dev/pts
+mount -t tmpfs shm /dev/shm
 
 echo ""
 echo "=== NULLROOT OS BOOT ==="
