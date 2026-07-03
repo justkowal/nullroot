@@ -24,7 +24,17 @@ stdenv.mkDerivation rec {
     pkg-config
     rsync
     zstd
+    llvmPackages.lld
+    llvmPackages.clang
+    llvmPackages.llvm
   ];
+
+  env = {
+    NIX_CFLAGS_COMPILE = "-Wno-unused-command-line-argument";
+    KCFLAGS = "-Wno-unused-command-line-argument";
+    KAFLAGS = "-Wno-unused-command-line-argument";
+    HOSTCFLAGS = "-Wno-unused-command-line-argument";
+  };
 
   buildPhase = ''
     runHook preBuild
@@ -32,10 +42,10 @@ stdenv.mkDerivation rec {
     patchShebangs scripts
 
     # Start from allnoconfig (everything disabled) then merge our minimal fragment
-    make allnoconfig
+    make LLVM=1 allnoconfig
 
     # Merge our config fragment on top
-    KCONFIG_ALLCONFIG=${./nullroot-kernel.config} make allnoconfig
+    KCONFIG_ALLCONFIG=${./nullroot-kernel.config} make LLVM=1 allnoconfig
 
     # Enable detected storage drivers
     ${if hardwareProfile != null && hardwareProfile.storage ? drivers then
@@ -71,7 +81,7 @@ stdenv.mkDerivation rec {
       scripts/config --disable CONFIG_BLK_DEV_INITRD
     '' else ""}
 
-    make olddefconfig
+    make LLVM=1 olddefconfig
 
     # Verify critical options
     echo "=== Verifying config ==="
@@ -81,7 +91,7 @@ stdenv.mkDerivation rec {
     grep CONFIG_DEVTMPFS .config || true
     echo "========================"
 
-    make -j$NIX_BUILD_CORES bzImage
+    make LLVM=1 -j$NIX_BUILD_CORES bzImage
 
     runHook postBuild
   '';

@@ -29,8 +29,8 @@ stdenv.mkDerivation {
       ln -sf toybox rootfs/bin/$cmd
     done
 
-    # Symlink networking tools to Busybox (since Toybox versions are missing or incomplete)
-    for cmd in ifconfig route ping; do
+    # Symlink networking tools and profiler utilities to Busybox
+    for cmd in ifconfig route ping awk tr; do
       ln -sf busybox rootfs/bin/$cmd
     done
 
@@ -57,6 +57,10 @@ stdenv.mkDerivation {
     # Copy the target system source files into the initramfs
     mkdir -p rootfs/usr/src/nullroot
     cp -r ${systemSource} rootfs/usr/src/nullroot/system
+
+    # Copy hardware detection utility to /bin
+    cp ${systemSource}/nullroot-detect rootfs/bin/nullroot-detect
+    chmod +x rootfs/bin/nullroot-detect
 
     # Copy SSL CA Certificates (required for Nix / HTTPS downloads)
     cp ${cacert}/etc/ssl/certs/ca-bundle.crt rootfs/etc/ssl/certs/ca-certificates.crt
@@ -237,10 +241,10 @@ mkdir -p /usr/src/nullroot/system
 /bin/nullroot-detect > /usr/src/nullroot/system/hardware.nix
 
 echo "Building target system kernel..."
-/bin/nix build /usr/src/nullroot/system#kernel --out-link /tmp/target-kernel --show-trace
+/bin/nix build /usr/src/nullroot#kernel --out-link /tmp/target-kernel --show-trace
 
 echo "Building target system rootfs..."
-/bin/nix build /usr/src/nullroot/system#nullroot-system --out-link /tmp/target-system --show-trace
+/bin/nix build /usr/src/nullroot#nullroot-system --out-link /tmp/target-system --show-trace
 
 # Resolve store paths from symlinks
 SYSTEM_PATH=$(readlink -f /tmp/target-system)
