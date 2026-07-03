@@ -70,6 +70,7 @@ stdenv.mkDerivation {
 sandbox = false
 experimental-features = nix-command flakes
 build-users-group =
+filter-syscalls = false
 NIXCONF_EOF
 
     # Write udhcpc event script for network interface configuration

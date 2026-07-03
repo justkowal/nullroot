@@ -88,6 +88,7 @@ GROUP_EOF
 sandbox = false
 experimental-features = nix-command flakes
 build-users-group =
+filter-syscalls = false
 NIXCONF_EOF
 
     # Write target system's default Starship configuration
