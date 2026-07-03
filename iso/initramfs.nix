@@ -21,12 +21,17 @@ stdenv.mkDerivation {
     for cmd in mount ls cat echo mkdir cp mv rm ln dmesg ps kill sleep \
                clear uname df free id whoami hostname vi sed grep head tail \
                wc find chmod chown mknod dd blkid blockdev losetup mkswap \
-               swapon swapoff umount partprobe fstype ifconfig wget ping \
+               swapon swapoff umount partprobe fstype wget \
                nc netcat tar cpio gunzip chroot pivot_root switch_root \
-               insmod lsmod modinfo lspci route tr cut env test \
+               insmod lsmod modinfo lspci tr cut env test \
                sort uniq xargs seq basename dirname realpath readlink \
                stat touch date printf; do
       ln -sf toybox rootfs/bin/$cmd
+    done
+
+    # Symlink networking tools to Busybox (since Toybox versions are missing or incomplete)
+    for cmd in ifconfig route ping; do
+      ln -sf busybox rootfs/bin/$cmd
     done
 
     # Copy disk partitioning & formatting tools
