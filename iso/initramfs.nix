@@ -69,6 +69,7 @@ stdenv.mkDerivation {
     cat > rootfs/etc/nix/nix.conf <<'NIXCONF_EOF'
 sandbox = false
 experimental-features = nix-command flakes
+build-users-group =
 NIXCONF_EOF
 
     # Write udhcpc event script for network interface configuration
@@ -201,8 +202,13 @@ echo "Configuring network (DHCP)..."
 /bin/udhcpc -i eth0 -s /usr/share/udhcpc/default.script -n -q || echo "DHCP failed, continuing..."
 
 # 5. Nix Setup
+echo "Mounting target Nix store subvolume..."
+mkdir -p /nix
+/bin/mount -t btrfs -o subvol=@nix "$part_data" /nix
+mkdir -p /nix/var/nix /nix/store /nix/tmp
+export TMPDIR=/nix/tmp
+
 echo "Preparing Nix database..."
-mkdir -p /nix/var/nix /nix/store
 /bin/nix-store --init 2>/dev/null || true
 echo "Ready for Nix builds."
 
@@ -274,25 +280,10 @@ echo "Generating read-only EROFS root filesystem image..."
 echo "Flashing EROFS image to Root A partition ($part_root_a)..."
 dd if=/tmp/rootfs.img of="$part_root_a" bs=4M status=progress
 
-# 8. Copy Nix store and stateful data to subvolumes
-echo "Mounting target Nix store subvolume..."
-mkdir -p /mnt_nix
-/bin/mount -t btrfs -o subvol=@nix "$part_data" /mnt_nix
-
-echo "Copying built Nix store closure to target..."
-mkdir -p /mnt_nix/store
-for path in $(/bin/nix-store --query --requisites /tmp/target-system /tmp/target-kernel); do
-  if [ -e "$path" ]; then
-    cp -a "$path" /mnt_nix/store/
-  fi
-done
-
-# Initialize Nix DB database registration on the Btrfs subvolume
-echo "Initializing target Nix database..."
-mkdir -p /mnt_nix/var/nix
-NIX_STATE_DIR=/mnt_nix/var/nix /bin/nix-store --init
-NIX_STATE_DIR=/mnt_nix/var/nix /bin/nix-store --load-db < /tmp/db.dump
-/bin/umount /mnt_nix
+# 8. Finalizing Nix store on target
+echo "Syncing target Nix store..."
+sync
+/bin/umount /nix
 
 echo "Mounting target Writable Data partition (@var subvolume)..."
 mkdir -p /mnt_var

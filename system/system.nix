@@ -87,6 +87,7 @@ GROUP_EOF
     cat > $out/etc/nix/nix.conf <<'NIXCONF_EOF'
 sandbox = false
 experimental-features = nix-command flakes
+build-users-group =
 NIXCONF_EOF
 
     # Write target system's default Starship configuration
