@@ -64,13 +64,12 @@ stdenv.mkDerivation rec {
       ) hardwareProfile.networking.drivers)
     else ""}
 
-    # Set initramfs source — must be in .config before build
-    ${if initramfs != null then ''
-      scripts/config --set-str CONFIG_INITRAMFS_SOURCE "${initramfs}/initramfs.cpio.gz"
-    '' else ''
-      scripts/config --set-str CONFIG_INITRAMFS_SOURCE ""
+    # Do NOT embed initramfs — it's too large (~1 GiB with toolchain).
+    # Instead, load it externally via QEMU -initrd or bootloader.
+    scripts/config --set-str CONFIG_INITRAMFS_SOURCE ""
+    ${if initramfs == null then ''
       scripts/config --disable CONFIG_BLK_DEV_INITRD
-    ''}
+    '' else ""}
 
     make olddefconfig
 
@@ -92,5 +91,10 @@ stdenv.mkDerivation rec {
     cp arch/x86/boot/bzImage $out/
     cp .config $out/config
     cp System.map $out/
+
+    # Copy initramfs alongside kernel for external loading
+    ${if initramfs != null then ''
+      cp ${initramfs}/initramfs.cpio.gz $out/initramfs.cpio.gz
+    '' else ""}
   '';
 }

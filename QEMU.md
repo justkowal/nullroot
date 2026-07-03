@@ -50,7 +50,7 @@ find /nix/store -name "OVMF.fd" 2>/dev/null | head -1
 ls /usr/share/edk2/x64/OVMF.fd
 
 # Ubuntu/Debian
-ls /usr/share/OVMF/OVMF_CODE.fd
+ls /usr/share/OVMF/OVMF_CODE_4M.fd
 ```
 
 ---
@@ -66,6 +66,7 @@ qemu-system-x86_64 \
   -smp 4 \
   -drive file=nullroot-disk.qcow2,format=qcow2,if=virtio \
   -kernel result/bzImage \
+  -initrd result/initramfs.cpio.gz \
   -append "console=ttyS0 root=/dev/vda2" \
   -nographic \
   -serial mon:stdio \
@@ -83,7 +84,7 @@ First, copy OVMF firmware and the kernel stub to a directory:
 # Copy writable OVMF vars
 cp /usr/share/edk2/x64/OVMF_VARS.fd /tmp/OVMF_VARS.fd   # Arch
 # Or:
-cp /usr/share/OVMF/OVMF_VARS.fd /tmp/OVMF_VARS.fd         # Ubuntu
+cp /usr/share/OVMF/OVMF_VARS_4M.fd /tmp/OVMF_VARS.fd         # Ubuntu
 
 # Create a small ESP image with the kernel
 mkdir -p /tmp/esp/EFI/BOOT
@@ -100,7 +101,8 @@ qemu-system-x86_64 \
   -enable-kvm \
   -m 4G \
   -smp 4 \
-  -drive if=pflash,format=raw,readonly=on,file=/usr/share/edk2/x64/OVMF_CODE.fd \
+  -drive if=pflash,format=raw,readonly=on,file=/usr/share/edk2/x64/OVMF_CODE.fd \ # Arch
+  # Or for Ubuntu: -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
   -drive if=pflash,format=raw,file=/tmp/OVMF_VARS.fd \
   -drive file=/tmp/esp.img,format=raw,if=virtio \
   -drive file=nullroot-disk.qcow2,format=qcow2,if=virtio \
@@ -148,6 +150,7 @@ qemu-system-x86_64 \
   -smp 4 \
   -drive file=nullroot-disk.qcow2,format=qcow2,if=virtio \
   -kernel result/bzImage \
+  -initrd result/initramfs.cpio.gz \
   -append "console=ttyS0 root=/dev/vda2" \
   -nographic \
   -serial mon:stdio \

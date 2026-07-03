@@ -49,12 +49,8 @@ stdenv.mkDerivation {
     mkdir -p rootfs/libexec
     cp -r ${git}/libexec/git-core rootfs/libexec/
 
-    # Copy all toolchain store paths into the initramfs Nix store
-    while read -r path; do
-      if [ -e "$path" ]; then
-        cp -a "$path" rootfs/nix/store/
-      fi
-    done < ${toolchainClosure}/store-paths
+    # Rely on online Nix cache downloads during target build.
+    # (Removed copy of toolchain paths to keep initramfs size small enough to boot in standard VM RAM).
 
     # Copy the target system source files into the initramfs
     mkdir -p rootfs/usr/src/nullroot
@@ -180,7 +176,7 @@ echo "Formatting Writable Data partition ($part_data) as Btrfs..."
 echo ""
 echo "Creating Btrfs subvolumes on Writable Data partition..."
 mkdir -p /tmp_btrfs
-/bin/mount "$part_data" /tmp_btrfs
+/bin/mount -t btrfs "$part_data" /tmp_btrfs
 /bin/btrfs subvolume create /tmp_btrfs/@nix
 /bin/btrfs subvolume create /tmp_btrfs/@home
 /bin/btrfs subvolume create /tmp_btrfs/@flatpak
@@ -215,9 +211,8 @@ echo "Preparing Nix database..."
 mkdir -p /nix/var/nix /nix/store
 /bin/nix-store --init 2>/dev/null || true
 
-# Register pre-bundled toolchain store paths in live database
-echo "Registering pre-bundled toolchain closure..."
-/bin/nix-store --load-db < ${toolchainClosure}/registration
+    # Register database dynamically during install/build
+    echo "Ready for Nix builds."
 
 echo "Building Nullroot target system directly in live environment..."
 export HOME=/tmp
@@ -264,7 +259,7 @@ dd if=/tmp/rootfs.img of="$part_root_a" bs=4M status=progress
 # 8. Copy Nix store and stateful data to subvolumes
 echo "Mounting target Nix store subvolume..."
 mkdir -p /mnt_nix
-/bin/mount -o subvol=@nix "$part_data" /mnt_nix
+/bin/mount -t btrfs -o subvol=@nix "$part_data" /mnt_nix
 
 echo "Copying built Nix store closure to target..."
 mkdir -p /mnt_nix/store
@@ -283,7 +278,7 @@ NIX_STATE_DIR=/mnt_nix/var/nix /bin/nix-store --load-db < /tmp/db.dump
 
 echo "Mounting target Writable Data partition (@var subvolume)..."
 mkdir -p /mnt_var
-/bin/mount -o subvol=@var "$part_data" /mnt_var
+/bin/mount -t btrfs -o subvol=@var "$part_data" /mnt_var
 echo "Populating stateful /var configuration directory..."
 cp -a "$SYSTEM_PATH/var/"* /mnt_var/ 2>/dev/null || true
 # Create empty overlay directories
@@ -297,7 +292,7 @@ cp -a /usr/src/nullroot /mnt_var/lib/overlay/etc_upper/nullroot
 
 echo "Mounting EFI System Partition..."
 mkdir -p /mnt_efi
-/bin/mount "$part_efi" /mnt_efi
+/bin/mount -t vfat "$part_efi" /mnt_efi
 echo "Installing UEFI kernel image..."
 mkdir -p /mnt_efi/EFI/BOOT
 cp "$KERNEL_PATH/bzImage" /mnt_efi/EFI/BOOT/BOOTX64.EFI

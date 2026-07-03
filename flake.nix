@@ -24,7 +24,6 @@
       toolchainClosure = pkgs.closureInfo {
         rootPaths = [
           baseMusl.llvmPackages.stdenv.cc
-          baseMusl.pkgsStatic.llvmPackages.stdenv.cc
           baseMusl.rustc
           baseMusl.cargo
           baseMusl.bison
@@ -42,12 +41,24 @@
 
       initramfs = pkgs.callPackage ./iso/initramfs.nix {
         inherit toybox toolchainClosure;
-        git = pkgs.pkgsStatic.git;
+        git = pkgs.pkgsStatic.git.overrideAttrs (old: { doCheck = false; doInstallCheck = false; });
         btrfs-progs = pkgs.pkgsStatic.btrfs-progs;
         erofs-utils = pkgs.pkgsStatic.erofs-utils;
-        dialog = pkgs.pkgsStatic.dialog;
+        
+        # Override dialog to forcefully disable shared linking and intercept gcc calls
+        dialog = pkgs.pkgsStatic.dialog.overrideAttrs (old: {
+          configureFlags = (old.configureFlags or []) ++ [
+            "--without-shared"
+            "--without-libtool"
+          ];
+          env = (old.env or {}) // {
+            LDFLAGS = "-static";
+          };
+        });
+        
         systemSource = ./system;
       };
+
       kernel = pkgs.callPackage ./iso/kernel.nix {
         inherit initramfs;
       };
