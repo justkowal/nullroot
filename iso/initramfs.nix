@@ -44,10 +44,7 @@ stdenv.mkDerivation {
     # Copy statically-linked Nix package manager
     cp ${pkgsStatic.nix}/bin/nix rootfs/bin/nix
 
-    # Copy statically-linked Git and its helpers
-    cp -r ${git}/bin/* rootfs/bin/
-    mkdir -p rootfs/libexec
-    cp -r ${git}/libexec/git-core rootfs/libexec/
+    # Git is not needed inside initramfs since we fetch configurations via Nix's built-in HTTPS client.
 
     # Rely on online Nix cache downloads during target build.
     # (Removed copy of toolchain paths to keep initramfs size small enough to boot in standard VM RAM).
@@ -189,8 +186,13 @@ echo "Configuring network (DHCP)..."
 /bin/ifconfig eth0 up 2>/dev/null || true
 /bin/udhcpc -i eth0 -n -q || echo "DHCP failed, continuing..."
 
-export GIT_EXEC_PATH=/libexec/git-core
+# 5. Nix Setup
+echo "Preparing Nix database..."
+mkdir -p /nix/var/nix /nix/store
+/bin/nix-store --init 2>/dev/null || true
+echo "Ready for Nix builds."
 
+# 6. Fetch OS Configuration from GitHub
 echo ""
 echo "=========================================="
 echo "    Fetching OS Configuration from GitHub "
@@ -201,18 +203,20 @@ if [ -z "$repo_url" ]; then
   repo_url="justkowal/nullroot"
 fi
 
-echo "Cloning latest configuration from https://github.com/$repo_url..."
+echo "Fetching configuration from github:$repo_url..."
+JSON_DATA=$(/bin/nix flake metadata "github:$repo_url" --json --extra-experimental-features "nix-command flakes")
+STORE_PATH=$(echo "$JSON_DATA" | grep -o '/nix/store/[^"]*')
+
+if [ -z "$STORE_PATH" ]; then
+  echo "Error: Failed to fetch configuration metadata!"
+  exit 1
+fi
+
+echo "Copying configuration from $STORE_PATH..."
 rm -rf /usr/src/nullroot
-/bin/git clone "https://github.com/$repo_url" /usr/src/nullroot
-echo "OS configuration cloned successfully."
-
-# 6. Nix Setup & Target Build
-echo "Preparing Nix database..."
-mkdir -p /nix/var/nix /nix/store
-/bin/nix-store --init 2>/dev/null || true
-
-    # Register database dynamically during install/build
-    echo "Ready for Nix builds."
+cp -a "$STORE_PATH" /usr/src/nullroot
+chmod -R +w /usr/src/nullroot
+echo "OS configuration fetched successfully."
 
 echo "Building Nullroot target system directly in live environment..."
 export HOME=/tmp
