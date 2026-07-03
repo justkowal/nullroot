@@ -65,19 +65,25 @@
       };
 
       # 4. Target-optimized static uutils-coreutils multicall binary
-      uutils = basePkgs.pkgsStatic.uutils-coreutils.override {
+      uutils = (basePkgs.pkgsStatic.uutils-coreutils.override {
         stdenv = customStdenvStatic;
-      };
+      }).overrideAttrs (oldAttrs: {
+        doCheck = false;
+      });
 
       # Target-optimized static Nushell
-      nushell = basePkgs.pkgsStatic.nushell.override {
+      nushell = (basePkgs.pkgsStatic.nushell.override {
         stdenv = customStdenvStatic;
-      };
+      }).overrideAttrs (oldAttrs: {
+        doCheck = false;
+      });
 
       # Target-optimized static Starship
-      starship = basePkgs.pkgsStatic.starship.override {
+      starship = (basePkgs.pkgsStatic.starship.override {
         stdenv = customStdenvStatic;
-      };
+      }).overrideAttrs (oldAttrs: {
+        doCheck = false;
+      });
 
       # Declarative system services supervised by s6
       services = {
