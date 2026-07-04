@@ -65,6 +65,9 @@ stdenv.mkDerivation {
     # Copy SSL CA Certificates (required for Nix / HTTPS downloads)
     cp ${cacert}/etc/ssl/certs/ca-bundle.crt rootfs/etc/ssl/certs/ca-certificates.crt
 
+    # Copy the premade VM config
+    cp ${./nullroot-install.conf} rootfs/etc/nullroot-install.conf
+
     # Write Nix configuration
     cat > rootfs/etc/nix/nix.conf <<'NIXCONF_EOF'
 sandbox = relaxed
@@ -104,6 +107,15 @@ DHCP_EOF
 #!/bin/sh
 set -e
 
+# Load configuration if provided as argument or exists at default path
+if [ -f "$1" ]; then
+  echo "Loading installation configuration from $1..."
+  . "$1"
+elif [ -f "/etc/nullroot-install.conf" ]; then
+  echo "Loading installation configuration from /etc/nullroot-install.conf..."
+  . "/etc/nullroot-install.conf"
+fi
+
 echo "=========================================="
 echo "      Welcome to the Nullroot Installer   "
 echo "=========================================="
@@ -126,9 +138,15 @@ if [ -z "$disks" ]; then
   exit 1
 fi
 
-echo ""
-echo -n "Select target disk (e.g. /dev/vda): "
-read target_dev
+if [ -z "$TARGET_DEV" ]; then
+  echo ""
+  echo -n "Select target disk (e.g. /dev/vda): "
+  read TARGET_DEV
+else
+  echo ""
+  echo "Select target disk: $TARGET_DEV (from config)"
+fi
+target_dev="$TARGET_DEV"
 
 valid=0
 for d in $disks; do
@@ -142,11 +160,18 @@ if [ "$valid" -eq 0 ]; then
   exit 1
 fi
 
-echo ""
-echo "WARNING: This will erase all data on $target_dev!"
-echo -n "Type 'y' to confirm and partition: "
-read confirm
-if [ "$confirm" != "y" ]; then
+if [ -z "$CONFIRM" ]; then
+  echo ""
+  echo "WARNING: This will erase all data on $target_dev!"
+  echo -n "Type 'y' to confirm and partition: "
+  read CONFIRM
+else
+  echo ""
+  echo "WARNING: This will erase all data on $target_dev!"
+  echo "Confirming partition: $CONFIRM (from config)"
+fi
+
+if [ "$CONFIRM" != "y" ]; then
   echo "Aborting."
   exit 1
 fi
@@ -215,15 +240,73 @@ echo "Preparing Nix database..."
 /bin/nix-store --init 2>/dev/null || true
 echo "Ready for Nix builds."
 
+# 5.5 Optional Cachix Cache Setup
+echo ""
+echo "=========================================="
+echo "      Cachix Binary Cache Integration     "
+echo "=========================================="
+if [ -z "$USE_CACHIX" ]; then
+  echo -n "Do you want to use a Cachix cache for this installation? [y/N]: "
+  read USE_CACHIX
+else
+  echo "Use Cachix: $USE_CACHIX (from config)"
+fi
+
+cache_name=""
+cachix_token=""
+public_key=""
+
+if [ "$USE_CACHIX" = "y" ] || [ "$USE_CACHIX" = "Y" ]; then
+  if [ -z "$CACHE_NAME" ]; then
+    echo -n "Enter Cachix cache name (e.g. mycache): "
+    read CACHE_NAME
+  else
+    echo "Cachix cache name: $CACHE_NAME (from config)"
+  fi
+  
+  if [ -z "$CACHIX_TOKEN" ]; then
+    echo -n "Enter Cachix Auth Token (optional, required to push/cache built files): "
+    read CACHIX_TOKEN
+  else
+    echo "Cachix token: [SET] (from config)"
+  fi
+
+  cache_name="$CACHE_NAME"
+  cachix_token="$CACHIX_TOKEN"
+
+  if [ -n "$cache_name" ]; then
+    if [ -z "$PUBLIC_KEY" ]; then
+      echo "Fetching public key for Cachix cache $cache_name..."
+      INFO_PATH=$(/bin/nix store prefetch-file "https://''${cache_name}.cachix.org/nix-cache-info" --json --extra-experimental-features "nix-command" 2>/dev/null | grep -o '/nix/store/[^"]*') || true
+      if [ -n "$INFO_PATH" ] && [ -f "$INFO_PATH" ]; then
+        public_key=$(grep "Trusted-Public-Keys" "$INFO_PATH" | cut -d' ' -f2)
+        echo "Successfully fetched cache public key: $public_key"
+      else
+        echo "Warning: Failed to fetch public key. Public cache entries may fail validation."
+      fi
+    else
+      public_key="$PUBLIC_KEY"
+      echo "Cachix public key: $public_key (from config)"
+    fi
+  fi
+fi
+
 # 6. Fetch OS Configuration from GitHub
 echo ""
 echo "=========================================="
 echo "    Fetching OS Configuration from GitHub "
 echo "=========================================="
-echo -n "Enter GitHub username/repo [justkowal/nullroot]: "
-read repo_url
-if [ -z "$repo_url" ]; then
+if [ -z "$REPO_URL" ]; then
+  echo -n "Enter GitHub username/repo [justkowal/nullroot]: "
+  read REPO_URL
+else
+  echo "GitHub repo: $REPO_URL (from config)"
+fi
+
+if [ -z "$REPO_URL" ]; then
   repo_url="justkowal/nullroot"
+else
+  repo_url="$REPO_URL"
 fi
 
 echo "Fetching configuration from github:$repo_url..."
@@ -250,18 +333,31 @@ echo "Running target hardware detection..."
 mkdir -p /usr/src/nullroot/system
 /bin/nullroot-detect > /usr/src/nullroot/system/hardware.nix
 
+NIX_BUILD_OPTS=""
+if [ -n "$cache_name" ] && [ -n "$public_key" ]; then
+  NIX_BUILD_OPTS="--option substituters \"https://''${cache_name}.cachix.org https://cache.nixos.org\" --option trusted-public-keys \"''${public_key} cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=\""
+fi
+
 echo "Building target system kernel..."
-/bin/nix build /usr/src/nullroot#kernel --out-link /tmp/target-kernel --show-trace
+rm -rf /homeless-shelter
+/bin/nix build /usr/src/nullroot#kernel --out-link /tmp/target-kernel --show-trace $NIX_BUILD_OPTS
 
 echo "Building target system rootfs..."
 rm -rf /homeless-shelter
-/bin/nix build /usr/src/nullroot#nullroot-system --out-link /tmp/target-system --show-trace
+/bin/nix build /usr/src/nullroot#nullroot-system --out-link /tmp/target-system --show-trace $NIX_BUILD_OPTS
 
 # Resolve store paths from symlinks
 SYSTEM_PATH=$(readlink -f /tmp/target-system)
 SYSTEM_DIR=$(basename "$SYSTEM_PATH")
 KERNEL_PATH=$(readlink -f /tmp/target-kernel)
 KERNEL_DIR=$(basename "$KERNEL_PATH")
+
+if [ -n "$cache_name" ] && [ -n "$cachix_token" ]; then
+  echo "Pushing built system closure to Cachix cache $cache_name..."
+  export CACHIX_AUTH_TOKEN="$cachix_token"
+  rm -rf /homeless-shelter
+  /bin/nix run nixpkgs#cachix --extra-experimental-features "nix-command flakes" -- push "$cache_name" "$SYSTEM_PATH" "$KERNEL_PATH" || echo "Cachix push failed, continuing..."
+fi
 
 # Dump live Nix database
 echo "Exporting Nix database..."
@@ -277,6 +373,14 @@ if [ -d "/usr/src/nullroot/user" ]; then
   echo "Overlaying custom userspace dotfiles from GitHub..."
   mkdir -p /tmp/rootfs/etc/skel/.config
   cp -a /usr/src/nullroot/user/* /tmp/rootfs/etc/skel/.config/ 2>/dev/null || true
+fi
+
+if [ -n "$cache_name" ] && [ -n "$public_key" ]; then
+  echo "Registering Cachix cache in target system configuration..."
+  cat >> /tmp/rootfs/etc/nix/nix.conf <<NIXCONF_CACHIX_EOF
+substituters = https://''${cache_name}.cachix.org https://cache.nixos.org
+trusted-public-keys = ''${public_key} cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+NIXCONF_CACHIX_EOF
 fi
 
 echo "Generating read-only EROFS root filesystem image..."
