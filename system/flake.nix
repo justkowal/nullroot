@@ -59,7 +59,7 @@
       # 3. Target system's kernel (embeds target initramfs)
       kernel = basePkgs.callPackage ./kernel.nix {
         stdenv = basePkgs.llvmPackages.stdenv;
-        pkgs = basePkgs;
+        pkgs = pkgs;
         configFile = ./nullroot-system-kernel.config;
         inherit initramfs hardwareProfile;
         embedInitramfs = true;
