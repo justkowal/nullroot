@@ -89,7 +89,7 @@ GROUP_EOF
 
     # Write target system's Nix configuration
     cat > $out/etc/nix/nix.conf <<'NIXCONF_EOF'
-sandbox = false
+sandbox = relaxed
 experimental-features = nix-command flakes
 build-users-group =
 filter-syscalls = false
