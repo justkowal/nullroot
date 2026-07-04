@@ -243,6 +243,7 @@ echo "OS configuration fetched successfully."
 
 echo "Building Nullroot target system directly in live environment..."
 export HOME=/tmp
+rm -rf /homeless-shelter
 
 # Execute hardware detection on target to generate hardware.nix
 echo "Running target hardware detection..."
