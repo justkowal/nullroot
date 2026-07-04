@@ -109,11 +109,11 @@ def main [
 
   print "Generating read-only EROFS root filesystem image..."
   rm -f /tmp/new_rootfs.img
-  mkfs.erofs -d /tmp/new_rootfs /tmp/new_rootfs.img
+  mkfs.erofs /tmp/new_rootfs.img /tmp/new_rootfs
 
   # 4. Flash EROFS image to inactive slot
   print $"Flashing EROFS image to ($part_root_target)..."
-  dd if=/tmp/new_rootfs.img of=$part_root_target bs=4M status=progress
+  dd if=/tmp/new_rootfs.img of=$part_root_target bs=4M
 
   # 5. Copy built store paths to Nix store subvolume
   print "Registering and copying Nix store closure..."

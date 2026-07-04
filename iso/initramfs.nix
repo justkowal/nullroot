@@ -21,7 +21,7 @@ stdenv.mkDerivation {
     for cmd in mount ls cat echo mkdir cp mv rm ln dmesg ps kill sleep \
                clear uname df free id whoami hostname vi sed grep head tail \
                wc find chmod chown mknod dd blkid blockdev losetup mkswap \
-               swapon swapoff umount partprobe fstype wget \
+               swapon swapoff umount partprobe fstype wget sync reboot poweroff \
                nc netcat tar cpio gunzip chroot pivot_root switch_root \
                insmod lsmod modinfo lspci tr cut env test \
                sort uniq xargs seq basename dirname realpath readlink \
@@ -48,6 +48,7 @@ stdenv.mkDerivation {
 
     # Copy statically-linked Nix package manager
     cp ${pkgsStatic.nix}/bin/nix rootfs/bin/nix
+    ln -sf nix rootfs/bin/nix-store
 
     # Git is not needed inside initramfs since we fetch configurations via Nix's built-in HTTPS client.
 
@@ -384,23 +385,19 @@ NIXCONF_CACHIX_EOF
 fi
 
 echo "Generating read-only EROFS root filesystem image..."
-/bin/mkfs.erofs -d /tmp/rootfs /tmp/rootfs.img
+/bin/mkfs.erofs /tmp/rootfs.img /tmp/rootfs
 
 echo "Flashing EROFS image to Root A partition ($part_root_a)..."
-dd if=/tmp/rootfs.img of="$part_root_a" bs=4M status=progress
+dd if=/tmp/rootfs.img of="$part_root_a" bs=4M
 
 # 8. Finalizing Nix store on target
-echo "Syncing target Nix store..."
-sync
-/bin/umount /nix
-
 echo "Mounting target Writable Data partition (@var subvolume)..."
 mkdir -p /mnt_var
 /bin/mount -t btrfs -o subvol=@var "$part_data" /mnt_var
 echo "Populating stateful /var configuration directory..."
 cp -a "$SYSTEM_PATH/var/"* /mnt_var/ 2>/dev/null || true
 # Create empty overlay directories
-mkdir -p /mnt_var/lib/overlay/{etc_upper,etc_work}
+mkdir -p /mnt_var/lib/overlay/etc_upper /mnt_var/lib/overlay/etc_work
 
 echo "Copying cloned GitHub repository to target /etc/nullroot..."
 mkdir -p /mnt_var/lib/overlay/etc_upper
@@ -421,6 +418,10 @@ ACTIVE_SLOT="A"
 BOOTCONF_EOF
 
 /bin/umount /mnt_efi
+
+echo "Syncing target Nix store..."
+/bin/sync || sync || true
+/bin/umount /nix
 
 echo "Nix target system bootstrap complete."
 echo ""
