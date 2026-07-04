@@ -103,7 +103,7 @@
       # 5. Target system's rootfs closure (installed onto the EXT4/Btrfs partition)
       nullroot-system = basePkgs.callPackage ./system.nix {
         stdenv = customStdenv;
-        pkgsStatic = basePkgs.pkgsStatic;
+        pkgsStatic = pkgs.pkgsStatic;
         inherit toybox uutils nushell starship services;
 
         # Pass GUI & audio stack packages
