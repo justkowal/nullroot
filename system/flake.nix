@@ -61,6 +61,7 @@
       kernel = basePkgs.callPackage ../iso/kernel.nix {
         stdenv = customStdenv;
         pkgs = basePkgs;
+        configFile = ./nullroot-system-kernel.config;
         inherit initramfs hardwareProfile;
       };
 

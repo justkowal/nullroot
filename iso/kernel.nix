@@ -2,6 +2,7 @@
 , pkgs
 , initramfs ? null
 , hardwareProfile ? null
+, configFile ? ./nullroot-kernel.config
 }:
 
 let
@@ -45,7 +46,7 @@ stdenv.mkDerivation rec {
     make LLVM=1 allnoconfig
 
     # Merge our config fragment on top
-    KCONFIG_ALLCONFIG=${./nullroot-kernel.config} make LLVM=1 allnoconfig
+    KCONFIG_ALLCONFIG=${configFile} make LLVM=1 allnoconfig
 
     # Enable detected storage drivers
     ${if hardwareProfile != null && hardwareProfile.storage ? drivers then
