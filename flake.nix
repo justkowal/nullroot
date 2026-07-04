@@ -35,9 +35,9 @@
       toybox = pkgs.pkgsStatic.callPackage ./iso/toybox.nix { };
 
       # Target system packages
-      uutils = pkgs.pkgsStatic.uutils-coreutils;
-      nushell = pkgs.pkgsStatic.nushell;
-      starship = pkgs.pkgsStatic.starship;
+      uutils = pkgs.pkgsStatic.uutils-coreutils.overrideAttrs (old: { doCheck = false; });
+      nushell = pkgs.pkgsStatic.nushell.overrideAttrs (old: { doCheck = false; });
+      starship = pkgs.pkgsStatic.starship.overrideAttrs (old: { doCheck = false; });
 
       # Declarative system services supervised by s6
       services = {

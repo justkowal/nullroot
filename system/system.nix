@@ -34,7 +34,11 @@ stdenv.mkDerivation rec {
     cp ${toybox}/bin/toybox $out/bin/toybox
     cp ${pkgsStatic.busybox}/bin/busybox $out/bin/busybox
     cp ${pkgsStatic.nix}/bin/nix $out/bin/nix
-    cp ${uutils}/bin/coreutils $out/bin/coreutils
+    if [ -f "${uutils}/bin/coreutils" ]; then
+      cp "${uutils}/bin/coreutils" "$out/bin/coreutils"
+    else
+      cp "${uutils}/bin/uutils-coreutils" "$out/bin/coreutils"
+    fi
     cp ${nushell}/bin/nu $out/bin/nu
     cp ${starship}/bin/starship $out/bin/starship
 
@@ -295,14 +299,7 @@ DHCP_EOF
 }
 CONF_EOF
 
-    # Write nullroot-rebuild script inside the installed system
-    cat > $out/bin/nullroot-rebuild <<'REBUILD_EOF'
-#!/bin/sh
-set -e
-echo "Rebuilding Nullroot system..."
-# Future rebuild switch implementation
-REBUILD_EOF
-    chmod +x $out/bin/nullroot-rebuild
+
   '';
 
   installPhase = ''
