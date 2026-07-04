@@ -254,6 +254,7 @@ echo "Building target system kernel..."
 /bin/nix build /usr/src/nullroot#kernel --out-link /tmp/target-kernel --show-trace
 
 echo "Building target system rootfs..."
+rm -rf /homeless-shelter
 /bin/nix build /usr/src/nullroot#nullroot-system --out-link /tmp/target-system --show-trace
 
 # Resolve store paths from symlinks

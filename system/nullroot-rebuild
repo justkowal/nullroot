@@ -84,9 +84,11 @@ def main [
   print "Building new target configuration using Nix..."
   let build_dir = "/etc/nullroot"
   
+  if ("/homeless-shelter" | path exists) { rm -r /homeless-shelter }
   print "Building target system kernel..."
   nix build $"($build_dir)/system#kernel" --out-link /tmp/new-kernel --extra-experimental-features "nix-command flakes"
   
+  if ("/homeless-shelter" | path exists) { rm -r /homeless-shelter }
   print "Building target system rootfs..."
   nix build $"($build_dir)/system#nullroot-system" --out-link /tmp/new-system --extra-experimental-features "nix-command flakes"
 
