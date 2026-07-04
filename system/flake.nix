@@ -59,10 +59,11 @@
 
       # 3. Target system's kernel (embeds target initramfs)
       kernel = basePkgs.callPackage ../iso/kernel.nix {
-        stdenv = customStdenv;
+        stdenv = basePkgs.llvmPackages.stdenv;
         pkgs = basePkgs;
         configFile = ./nullroot-system-kernel.config;
         inherit initramfs hardwareProfile;
+        embedInitramfs = true;
       };
 
       # 4. Target-optimized static uutils-coreutils multicall binary

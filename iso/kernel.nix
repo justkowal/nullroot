@@ -3,6 +3,7 @@
 , initramfs ? null
 , hardwareProfile ? null
 , configFile ? ./nullroot-kernel.config
+, embedInitramfs ? false
 }:
 
 let
@@ -75,12 +76,18 @@ stdenv.mkDerivation rec {
       ) hardwareProfile.networking.drivers)
     else ""}
 
-    # Do NOT embed initramfs — it's too large (~1 GiB with toolchain).
-    # Instead, load it externally via QEMU -initrd or bootloader.
-    scripts/config --set-str CONFIG_INITRAMFS_SOURCE ""
-    ${if initramfs == null then ''
-      scripts/config --disable CONFIG_BLK_DEV_INITRD
-    '' else ""}
+    # Embed initramfs if specified, otherwise keep empty for external loading
+    ${if embedInitramfs && initramfs != null then ''
+      scripts/config --set-str CONFIG_INITRAMFS_SOURCE "${initramfs}/initramfs.cpio.gz"
+      scripts/config --enable CONFIG_BLK_DEV_INITRD
+    '' else ''
+      # Do NOT embed installer initramfs — it's too large (~1 GiB with toolchain).
+      # Instead, load it externally via QEMU -initrd or bootloader.
+      scripts/config --set-str CONFIG_INITRAMFS_SOURCE ""
+      ${if initramfs == null then ''
+        scripts/config --disable CONFIG_BLK_DEV_INITRD
+      '' else ""}
+    ''}
 
     make LLVM=1 olddefconfig
 

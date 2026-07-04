@@ -341,11 +341,11 @@ fi
 
 echo "Building target system kernel..."
 rm -rf /homeless-shelter
-/bin/nix build /usr/src/nullroot#kernel --out-link /tmp/target-kernel --show-trace $NIX_BUILD_OPTS
+/bin/nix build /usr/src/nullroot/system#kernel --out-link /tmp/target-kernel --show-trace $NIX_BUILD_OPTS
 
 echo "Building target system rootfs..."
 rm -rf /homeless-shelter
-/bin/nix build /usr/src/nullroot#nullroot-system --out-link /tmp/target-system --show-trace $NIX_BUILD_OPTS
+/bin/nix build /usr/src/nullroot/system#nullroot-system --out-link /tmp/target-system --show-trace $NIX_BUILD_OPTS
 
 # Resolve store paths from symlinks
 SYSTEM_PATH=$(readlink -f /tmp/target-system)
