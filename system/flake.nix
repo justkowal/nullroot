@@ -7,8 +7,10 @@
     let
       system = "x86_64-linux";
 
+      pkgs = import nixpkgs { inherit system; };
+
       # Base Musl package set
-      basePkgs = (import nixpkgs { inherit system; }).pkgsMusl;
+      basePkgs = pkgs.pkgsMusl;
 
       # Load hardware profile if it exists, otherwise fallback to generic defaults
       hardwareProfile = if builtins.pathExists ./hardware.nix then import ./hardware.nix else {
@@ -47,13 +49,10 @@
       };
 
       # 1. Statically-linked userspace core
-      toybox = basePkgs.callPackage ./toybox.nix {
-        stdenv = customStdenvStatic;
-      };
+      toybox = pkgs.pkgsStatic.callPackage ./toybox.nix { };
 
       # 2. Target system's initramfs (mounts real root disk and switches root)
-      initramfs = basePkgs.callPackage ./initramfs.nix {
-        stdenv = customStdenvStatic;
+      initramfs = pkgs.callPackage ./initramfs.nix {
         inherit toybox;
       };
 
@@ -67,23 +66,17 @@
       };
 
       # 4. Target-optimized static uutils-coreutils multicall binary
-      uutils = (basePkgs.pkgsStatic.uutils-coreutils.override {
-        stdenv = customStdenvStatic;
-      }).overrideAttrs (oldAttrs: {
+      uutils = pkgs.pkgsStatic.uutils-coreutils.overrideAttrs (oldAttrs: {
         doCheck = false;
       });
 
       # Target-optimized static Nushell
-      nushell = (basePkgs.pkgsStatic.nushell.override {
-        stdenv = customStdenvStatic;
-      }).overrideAttrs (oldAttrs: {
+      nushell = pkgs.pkgsStatic.nushell.overrideAttrs (oldAttrs: {
         doCheck = false;
       });
 
       # Target-optimized static Starship
-      starship = (basePkgs.pkgsStatic.starship.override {
-        stdenv = customStdenvStatic;
-      }).overrideAttrs (oldAttrs: {
+      starship = pkgs.pkgsStatic.starship.overrideAttrs (oldAttrs: {
         doCheck = false;
       });
 
