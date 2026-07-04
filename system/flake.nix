@@ -58,7 +58,7 @@
       };
 
       # 3. Target system's kernel (embeds target initramfs)
-      kernel = basePkgs.callPackage ../iso/kernel.nix {
+      kernel = basePkgs.callPackage ./kernel.nix {
         stdenv = basePkgs.llvmPackages.stdenv;
         pkgs = basePkgs;
         configFile = ./nullroot-system-kernel.config;
