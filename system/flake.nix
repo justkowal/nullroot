@@ -47,7 +47,7 @@
       };
 
       # 1. Statically-linked userspace core
-      toybox = basePkgs.callPackage ../iso/toybox.nix {
+      toybox = basePkgs.callPackage ./toybox.nix {
         stdenv = customStdenvStatic;
       };
 
