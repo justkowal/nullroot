@@ -227,7 +227,7 @@ if [ -z "$repo_url" ]; then
 fi
 
 echo "Fetching configuration from github:$repo_url..."
-JSON_DATA=$(/bin/nix flake metadata "github:$repo_url" --json --extra-experimental-features "nix-command flakes")
+JSON_DATA=$(/bin/nix flake metadata "github:$repo_url" --json --extra-experimental-features "nix-command flakes" --refresh)
 STORE_PATH=$(echo "$JSON_DATA" | grep -o '/nix/store/[^"]*')
 
 if [ -z "$STORE_PATH" ]; then
