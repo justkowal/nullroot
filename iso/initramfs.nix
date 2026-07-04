@@ -69,6 +69,15 @@ stdenv.mkDerivation {
     # Copy the premade VM config
     cp ${./nullroot-install.conf} rootfs/etc/nullroot-install.conf
 
+    # Write default /etc/passwd and /etc/group for installer environment
+    cat > rootfs/etc/passwd <<'PASSWD_EOF'
+root:x:0:0:root:/root:/bin/sh
+PASSWD_EOF
+
+    cat > rootfs/etc/group <<'GROUP_EOF'
+root:x:0:
+GROUP_EOF
+
     # Write Nix configuration
     cat > rootfs/etc/nix/nix.conf <<'NIXCONF_EOF'
 sandbox = false
