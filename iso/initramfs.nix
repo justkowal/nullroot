@@ -334,18 +334,32 @@ echo "Running target hardware detection..."
 mkdir -p /usr/src/nullroot/system
 /bin/nullroot-detect > /usr/src/nullroot/system/hardware.nix
 
-NIX_BUILD_OPTS=""
+SUBSTITUTERS=""
+TRUSTED_KEYS=""
 if [ -n "$cache_name" ] && [ -n "$public_key" ]; then
-  NIX_BUILD_OPTS="--option substituters \"https://''${cache_name}.cachix.org https://cache.nixos.org\" --option trusted-public-keys \"''${public_key} cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=\""
+  SUBSTITUTERS="https://''${cache_name}.cachix.org https://cache.nixos.org"
+  TRUSTED_KEYS="''${public_key} cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
 fi
 
 echo "Building target system kernel..."
 rm -rf /homeless-shelter
-/bin/nix build /usr/src/nullroot/system#kernel --out-link /tmp/target-kernel --show-trace $NIX_BUILD_OPTS
+if [ -n "$SUBSTITUTERS" ]; then
+  /bin/nix build /usr/src/nullroot/system#kernel --out-link /tmp/target-kernel --show-trace \
+    --option substituters "$SUBSTITUTERS" \
+    --option trusted-public-keys "$TRUSTED_KEYS"
+else
+  /bin/nix build /usr/src/nullroot/system#kernel --out-link /tmp/target-kernel --show-trace
+fi
 
 echo "Building target system rootfs..."
 rm -rf /homeless-shelter
-/bin/nix build /usr/src/nullroot/system#nullroot-system --out-link /tmp/target-system --show-trace $NIX_BUILD_OPTS
+if [ -n "$SUBSTITUTERS" ]; then
+  /bin/nix build /usr/src/nullroot/system#nullroot-system --out-link /tmp/target-system --show-trace \
+    --option substituters "$SUBSTITUTERS" \
+    --option trusted-public-keys "$TRUSTED_KEYS"
+else
+  /bin/nix build /usr/src/nullroot/system#nullroot-system --out-link /tmp/target-system --show-trace
+fi
 
 # Resolve store paths from symlinks
 SYSTEM_PATH=$(readlink -f /tmp/target-system)
